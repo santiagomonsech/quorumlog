@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include "../src/bytes.h"
 #include "../src/entry.h"
+#include "../src/file_log.h"
 
 void roundtrip_test(uint64_t value){
     uint8_t buffer[8];
@@ -27,6 +28,13 @@ void roundtrip_entry_test(){
     assert(decoded.value == entry.value);
 }
 
+void log_to_file_test(){
+    log_entry entry = {.timestamp = time(NULL), .value = rand()};
+    open_log("./log_file");
+    assert(log_to_file(&entry) == 0);
+    close_log();
+}
+
 int main(void)
 {
     srand(time(NULL));
@@ -34,5 +42,6 @@ int main(void)
     roundtrip_test(1000);
     roundtrip_test(UINT64_MAX);
     roundtrip_entry_test();
+    log_to_file_test();
     return 0;
 }

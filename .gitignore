@@ -2,7 +2,10 @@
 src/*.o
 tests/test
 
-# Learning/AI scaffolding — not part of the deliverable
+# Logs
+log_*
+
+# Learning — not part of the deliverable
 .claude/
 CLAUDE.md
 CONTEXT.md
