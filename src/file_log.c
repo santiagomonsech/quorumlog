@@ -14,7 +14,6 @@ static int log_fd = -1;
 int open_log(const char *filename){
     if((log_fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR)) == -1){
         perror("Failed to open log file");
-        perror(strerror(errno));
         return -1;
     }
     return log_fd;
