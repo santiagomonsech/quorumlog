@@ -4,21 +4,24 @@
 #include <zlib.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/resource.h>
 #include "../src/bytes.h"
 #include "../src/entry.h"
 #include "../src/file_log.h"
 
-void roundtrip_test(uint64_t value){
+void roundtrip_test(uint64_t value)
+{
     uint8_t buffer[8];
     put_u64_be(buffer, value);
     uint64_t retrieved_value = get_u64_be(buffer);
     assert(value == retrieved_value);
 }
 
-void roundtrip_entry_test(){
+void roundtrip_entry_test()
+{
     uint8_t buffer[ENTRY_SIZE];
     time_t now = time(NULL);
-    uint64_t  value = rand();
+    uint64_t value = rand();
     log_entry entry = {.timestamp = now, .value = value};
     encode_entry(&entry, buffer);
     log_entry decoded;
@@ -28,10 +31,25 @@ void roundtrip_entry_test(){
     assert(decoded.value == entry.value);
 }
 
-void log_to_file_test(){
+void log_to_file_test()
+{
     log_entry entry = {.timestamp = time(NULL), .value = rand()};
     open_log("./log_file");
     assert(log_to_file(&entry) == 0);
+    close_log();
+}
+
+void wrong_entry_will_be_discarded_test()
+{
+    log_entry entry = {.timestamp = time(NULL), .value = rand()};
+    open_log("./log_file_limit");
+    struct rlimit lim;
+    lim.rlim_cur = 50;
+    lim.rlim_max = 50;
+    setrlimit(RLIMIT_FSIZE, &lim);
+    assert(log_to_file(&entry) == 0);
+    assert(log_to_file(&entry) == 0);
+    assert(log_to_file(&entry) == -1);
     close_log();
 }
 
@@ -43,5 +61,6 @@ int main(void)
     roundtrip_test(UINT64_MAX);
     roundtrip_entry_test();
     log_to_file_test();
+    wrong_entry_will_be_discarded_test();
     return 0;
 }
