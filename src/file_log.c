@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "../src/file_log.h"
 #include "../src/entry.h"
 
@@ -18,6 +19,14 @@ int open_log(const char *filename){
         return -1;
     }
     return log_fd;
+}
+
+sighandler_t set_signal_ignore(int signal_id){
+    return signal(signal_id, SIG_IGN);
+}
+
+void undo_signal_ignore(int signal_id, sighandler_t signal_handler){
+    signal(signal_id, signal_handler);
 }
 
 int close_log(){
@@ -50,6 +59,7 @@ ssize_t _rollback_last_entry(){
             return -1;
         }
     }
+    printf("Last entry was rollbacked\n");
     return 0;
 }
 
@@ -88,7 +98,6 @@ int log_to_file(log_entry *entry) {
     uint8_t buffer[ENTRY_SIZE];
     encode_entry(entry, buffer);
     if(_write_entry(buffer, ENTRY_SIZE) < 0){
-        perror("Failed to write to log file");
         return -1;
     }
     return 0;

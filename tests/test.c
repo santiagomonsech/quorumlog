@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/resource.h>
+#include <signal.h>
 #include "../src/bytes.h"
 #include "../src/entry.h"
 #include "../src/file_log.h"
@@ -41,15 +42,28 @@ void log_to_file_test()
 
 void wrong_entry_will_be_discarded_test()
 {
+    sighandler_t prev_handler = set_signal_ignore(SIGXFSZ);
     log_entry entry = {.timestamp = time(NULL), .value = rand()};
+    unlink("./log_file_limit");
     open_log("./log_file_limit");
-    struct rlimit lim;
+   
+    
+    struct rlimit lim, prev;
+    getrlimit(RLIMIT_FSIZE, &prev);
+    getrlimit(RLIMIT_FSIZE, &lim);
     lim.rlim_cur = 50;
-    lim.rlim_max = 50;
-    setrlimit(RLIMIT_FSIZE, &lim);
+    if(setrlimit(RLIMIT_FSIZE, &lim) == -1) {
+        perror("Failed to set file size limit");
+    }
+
     assert(log_to_file(&entry) == 0);
     assert(log_to_file(&entry) == 0);
     assert(log_to_file(&entry) == -1);
+
+    if(setrlimit(RLIMIT_FSIZE, &prev) == -1) {
+        perror("Failed to restore file size limit");
+    }
+    undo_signal_ignore(SIGXFSZ, prev_handler);
     close_log();
 }
 
