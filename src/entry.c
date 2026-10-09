@@ -4,7 +4,7 @@
 #include "entry.h"
 #include <stdio.h>
 
-uint32_t _calculate_checksum(const uint8_t *buffer){
+uint32_t calculate_checksum(const uint8_t *buffer){
     uint64_t checksum = crc32(0L, buffer, PAYLOAD_SIZE);
     return (uint32_t)checksum;
 }
@@ -12,7 +12,7 @@ uint32_t _calculate_checksum(const uint8_t *buffer){
 int encode_entry(log_entry *entry, uint8_t *buffer){
     put_u64_be(buffer, entry->timestamp);
     put_u64_be(buffer + VALUE_OFFSET, entry->value);
-    uint32_t checksum = _calculate_checksum(buffer);
+    uint32_t checksum = calculate_checksum(buffer);
     put_u32_be(buffer + CHECKSUM_OFFSET, checksum);
     return 0;
 }

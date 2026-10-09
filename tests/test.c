@@ -10,6 +10,11 @@
 #include "../src/entry.h"
 #include "../src/file_log.h"
 
+uint64_t calculate_random()
+{
+    return (rand() % (100 - 0 + 1)) + 0;
+}
+
 void roundtrip_test(uint64_t value)
 {
     uint8_t buffer[8];
@@ -22,19 +27,19 @@ void roundtrip_entry_test()
 {
     uint8_t buffer[ENTRY_SIZE];
     time_t now = time(NULL);
-    uint64_t value = rand();
+    uint64_t value = calculate_random();
     log_entry entry = {.timestamp = now, .value = value};
     encode_entry(&entry, buffer);
     log_entry decoded;
     decode_entry(&decoded, buffer);
-    assert(decoded.checksum == _calculate_checksum(buffer));
+    assert(decoded.checksum == calculate_checksum(buffer));
     assert(decoded.timestamp == entry.timestamp);
     assert(decoded.value == entry.value);
 }
 
 void log_to_file_test()
 {
-    log_entry entry = {.timestamp = time(NULL), .value = rand()};
+    log_entry entry = {.timestamp = time(NULL), .value = calculate_random()};
     open_log("./log_file");
     assert(log_to_file(&entry) == 0);
     close_log();
@@ -43,16 +48,16 @@ void log_to_file_test()
 void wrong_entry_will_be_discarded_test()
 {
     sighandler_t prev_handler = set_signal_ignore(SIGXFSZ);
-    log_entry entry = {.timestamp = time(NULL), .value = rand()};
+    log_entry entry = {.timestamp = time(NULL), .value = calculate_random()};
     unlink("./log_file_limit");
     open_log("./log_file_limit");
-   
-    
+
     struct rlimit lim, prev;
     getrlimit(RLIMIT_FSIZE, &prev);
     getrlimit(RLIMIT_FSIZE, &lim);
     lim.rlim_cur = 50;
-    if(setrlimit(RLIMIT_FSIZE, &lim) == -1) {
+    if (setrlimit(RLIMIT_FSIZE, &lim) == -1)
+    {
         perror("Failed to set file size limit");
     }
 
@@ -60,11 +65,23 @@ void wrong_entry_will_be_discarded_test()
     assert(log_to_file(&entry) == 0);
     assert(log_to_file(&entry) == -1);
 
-    if(setrlimit(RLIMIT_FSIZE, &prev) == -1) {
+    if (setrlimit(RLIMIT_FSIZE, &prev) == -1)
+    {
         perror("Failed to restore file size limit");
     }
     undo_signal_ignore(SIGXFSZ, prev_handler);
     close_log();
+}
+
+void read_entry_test()
+{
+    log_entry entry;
+    int fd = restore_log("log_file");
+    printf("Restored log file descriptor: %d\n", fd);
+    assert(read_log_entry(fd, &entry) == 0);
+
+    printf("%ld, %ld\n", entry.timestamp, entry.value);
+    close(fd);
 }
 
 int main(void)
@@ -76,5 +93,6 @@ int main(void)
     roundtrip_entry_test();
     log_to_file_test();
     wrong_entry_will_be_discarded_test();
+    read_entry_test();
     return 0;
 }
