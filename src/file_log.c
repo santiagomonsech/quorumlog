@@ -176,6 +176,7 @@ int _read_entry(int fd, uint8_t buffer[], size_t buffer_size)
             if (errno == EINTR)
             {
                 bytes_read = 0;
+                continue;
             }
             else
             {
@@ -183,10 +184,14 @@ int _read_entry(int fd, uint8_t buffer[], size_t buffer_size)
                 return -1;
             }
         }
+        if (bytes_read == 0)
+        {
+            return EOF_LOG;
+        }
         bytes_left -= bytes_read;
         buffer += bytes_read;
     }
-    return 0;
+    return bytes_read;
 }
 
 int log_to_file(log_entry *entry)
@@ -213,11 +218,16 @@ int read_log_entry(int fd, log_entry *entry)
         return -1;
     }
     uint8_t buffer[ENTRY_SIZE];
-    if (_read_entry(fd, buffer, ENTRY_SIZE) < 0)
+    int read_status = _read_entry(fd, buffer, ENTRY_SIZE);
+    if ( read_status < 0)
     {
-        return -1;
+        return read_status;
     }
     decode_entry(entry, buffer);
     uint32_t checksum = calculate_checksum(buffer);
-    return !(checksum == entry->checksum);
+    if (checksum == entry->checksum)
+    {
+        return 0;
+    }
+    return CRC_MISMATCH;
 }

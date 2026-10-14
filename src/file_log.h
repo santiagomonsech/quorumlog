@@ -3,7 +3,11 @@
 
 #include "entry.h"
 
+#define CRC_MISMATCH -2
+#define EOF_LOG -3
+
 typedef void (*sighandler_t)(int);
+
 
 sighandler_t set_signal_ignore(int);
 void undo_signal_ignore(int, sighandler_t);

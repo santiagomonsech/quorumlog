@@ -3,9 +3,12 @@
 #include <time.h>
 #include <zlib.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "../src/bytes.h"
 #include "../src/entry.h"
 #include "../src/file_log.h"
@@ -84,6 +87,77 @@ void read_entry_test()
     close(fd);
 }
 
+void read_all_entries()
+{
+    log_entry entry;
+    int fd = restore_log("log_file");
+    printf("Restored log file descriptor: %d\n", fd);
+    int read_status = 0;
+    struct stat sb;
+
+    if (fstat(fd, &sb) != 0)
+    {
+        perror("fstat");
+        return;
+    }
+    printf("Log file size: %ld bytes\n", sb.st_size);
+
+    while (read_status == 0)
+    {
+        read_status = read_log_entry(fd, &entry);
+        if (read_status == EOF_LOG)
+        {
+            assert(sb.st_size == lseek(fd, 0, SEEK_CUR));
+        }
+        else
+        {
+            assert(read_status == 0);
+        }
+    }
+
+    close(fd);
+}
+
+void read_corrupted_entry()
+{
+    unlink("./log_file_corrupted");
+    log_entry entry = {.timestamp = time(NULL), .value = calculate_random()};
+    int fd = open_log("log_file_corrupted");
+    assert(log_to_file(&entry) == 0);
+    close_log();
+
+    int fd_corr = open("log_file_corrupted", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    printf("Corrupted log file descriptor: %d\n", fd_corr);
+    if (fd_corr == -1)
+    {
+        perror("Failed to open corrupted log file");
+        return;
+    }
+    uint8_t buffer[ENTRY_SIZE];
+    encode_entry(&entry, buffer);
+    buffer[3] ^= 0xFF;
+
+    if (lseek(fd_corr, 0, SEEK_SET) == -1)
+    {
+        perror("Failed to seek to beginning of file");
+        close(fd_corr);
+        return;
+    }
+
+    fd = restore_log("log_file_corrupted");
+    if (write(fd_corr, buffer, sizeof(buffer)) != sizeof(buffer))
+    {
+        perror("Failed to write corrupted entry");
+    }
+
+    log_entry corrupted_entry;
+    int status = read_log_entry(fd, &corrupted_entry);
+    assert(status == CRC_MISMATCH);
+
+    close(fd);
+    close(fd_corr);
+}
+
 int main(void)
 {
     srand(time(NULL));
@@ -94,5 +168,7 @@ int main(void)
     log_to_file_test();
     wrong_entry_will_be_discarded_test();
     read_entry_test();
+    read_all_entries();
+    read_corrupted_entry();
     return 0;
 }
